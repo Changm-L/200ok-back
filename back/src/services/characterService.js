@@ -1,6 +1,7 @@
 import _ from "underscore";
 
 import { Character } from "../db/index.js";
+import { RequestError } from "../utils/errors.js";
 import * as status from "../utils/status.js";
 
 /**
@@ -53,7 +54,7 @@ class CharacterService {
     }
   }
 
-  /** 생일이 일치하는 캐릭터들의 객체를 반환합니다.
+  /** **DEPRECATED** 생일이 일치하는 캐릭터들의 객체를 반환합니다.
    *
    * @arg {{birthday: string, fields: string[]}} payload -
    * ```js
@@ -85,6 +86,15 @@ class CharacterService {
   static list() {
     const characters = Character.list();
     return characters;
+  }
+
+  /** 지정된 캐릭터 데이터 필드에 어떤 값들이 있는지 반환합니다.
+   *
+   * @arg {string} field - 찾으려는 필드입니다. (`species`, `hobby`, ...)
+   * @return {string[]} - 결과값은 문자열의 배열입니다.
+   */
+  static listCategories(field) {
+    return Character.listCategories(field);
   }
 
   /** 캐릭터 `n`명을 무작위로 골라 배열로 반환합니다.

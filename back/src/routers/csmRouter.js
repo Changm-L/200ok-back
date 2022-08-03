@@ -1,5 +1,7 @@
 import { Router } from "express";
 import { body } from "express-validator";
+import base64 from "base-64";
+import utf8 from "utf8";
 
 import { CsmService } from "../services/csmService.js";
 import { validate } from "../middlewares/validator.js";
@@ -92,6 +94,25 @@ csmRouter.get("/csmdata/counts", async (req, res, next) => {
   res.status(status.STATUS_200_OK).json(body);
 });
 
+const csmPutBodyMiddleware = async (req, res, next) => {
+  // validator의 작동 방식은 아마도 new Date()로 확인하는 것 같으므로
+  // 지금 연도가 정해지지 않은 상황에선 별로 쓸모가 없을 듯 합니다.
+  // 따라서 수동으로 합니다.
+  if (
+    !/[01][0-9]-[0-3][0-9]/.test(req.body.birthday) ||
+    new Date(req.body.birthday) === "Invalid Date"
+  ) {
+    next(
+      new RequestError(
+        { status: status.STATUS_400_BADREQUEST },
+        `Invalid "birthday" format`
+      )
+    );
+  } else {
+    next();
+  }
+};
+
 /** PUT /csmdata/counts swaggerdoc
  * @swagger
  * /csmdata/counts:
@@ -178,24 +199,7 @@ csmRouter.get("/csmdata/counts", async (req, res, next) => {
 csmRouter.put(
   "/csmdata/counts",
   [
-    async (req, res, next) => {
-      // validator의 작동 방식은 아마도 new Date()로 확인하는 것 같으므로
-      // 지금 연도가 정해지지 않은 상황에선 별로 쓸모가 없을 듯 합니다.
-      // 따라서 수동으로 합니다.
-      if (
-        !/[01][0-9]-[0-3][0-9]/.test(req.body.birthday) ||
-        new Date(req.body.birthday) === "Invalid Date"
-      ) {
-        next(
-          new RequestError(
-            { status: status.STATUS_400_BADREQUEST },
-            `Invalid "birthday" format`
-          )
-        );
-      } else {
-        next();
-      }
-    },
+    csmPutBodyMiddleware,
     body(["hobby", "personality"])
       .isString()
       .withMessage(`"Invalid "hobby" or "personality" format`),
@@ -219,8 +223,110 @@ csmRouter.put(
           count: up.count,
         },
       };
-      console.log(body);
+      // console.log(body);
       return res.status(status.STATUS_200_OK).json(body);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/** GET /csmdata/share/:code swaggerdoc
+ * @swagger
+ * /csmdata/share/{code}:
+ *   get:
+ *    summary: 사용자 csm 정보를 재현합니다.
+ *    description: |
+ *      `PUT /csmdata/counts`와 비슷하지만 매칭 카운트를 올리지 않습니다.
+ *    tags: [Csm]
+ *    parameters:
+ *      - in: path
+ *        name: code
+ *        required: true
+ *        description: |
+ *          `PUT /csmdata/counts`를 json화한 후 `base64` 코덱으로 인코딩한
+ *          문자열입니다.
+ *        example: |
+ *          eyJiaXJ0aGRheSI6IjAzLTE0IiwiY29sb3JzIjpbIu2Vke2BrOyDiSJdLCJwZXJzb25hbGl0eSI6IuyEseyIme2VqCIsImhvYmJ5Ijoi7J2M7JWFIiwic3R5bGVzIjpbIuyVoe2LsOu4jCJdfQ==
+ *        schema:
+ *          type: string
+ *          format: json.utf8.base64
+ *    responses:
+ *      200:
+ *        description: 매칭 기록 재현에 성공했습니다.
+ *        content:
+ *          application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                success:
+ *                  type: string
+ *                  example: true
+ *                payload:
+ *                   type: object
+ *                   properties:
+ *                    id:
+ *                      type: string
+ *                      example: admiral
+ *                    character:
+ *                      type: object
+ *                      properties:
+ *                        id:
+ *                          type: string
+ *                          example: judy
+ *                        name_ko:
+ *                          type: string
+ *                          example: 미애
+ *                        image_photo:
+ *                          type: string
+ *                          example: https://acnhcdn.com/latest/NpcBromide/NpcNmlCbr19.png
+ *                    distance:
+ *                      type: number
+ *                      example: 1.1277667859523386
+ *                    count:
+ *                      type: number
+ *                      example: 1
+ *                    total:
+ *                      type: number
+ *                      example: 417
+ */
+csmRouter.get(
+  "/csmdata/share/:code",
+  async (req, res, next) => {
+    try {
+      const jsonStr = utf8.decode(base64.decode(req.params.code));
+      const payload = JSON.parse(jsonStr);
+      req.body = { ...payload };
+      next();
+    } catch (error) {
+      next(error);
+    }
+  },
+  [
+    csmPutBodyMiddleware,
+    body(["hobby", "personality"])
+      .isString()
+      .withMessage(`"Invalid "hobby" or "personality" format`),
+    body(["colors", "styles"])
+      .isArray({ min: 1, max: 2 })
+      .withMessage(`Invalid "colors" or "styles" format`),
+    validate,
+  ],
+  async (req, res, next) => {
+    try {
+      const mostSimilar = CsmService.csm({ ...req.body });
+      const id = mostSimilar.id;
+      const count = await CsmService.getCount({ id });
+      const body = {
+        success: true,
+        payload: {
+          id,
+          character: mostSimilar.character,
+          distance: mostSimilar.distance,
+          ...count.payload,
+        },
+      };
+      res.status(status.STATUS_200_OK).json(body);
     } catch (error) {
       next(error);
     }

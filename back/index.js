@@ -2,7 +2,7 @@ import { app } from "./src/app.js";
 import swaggerJSDoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
 
-const PORT = process.env.SERVER_PORT || 5001;
+const PORT = process.env.SERVER_PORT || 5000;
 
 const swaggerDefinition = {
   openapi: "3.0.0",
@@ -13,7 +13,8 @@ const swaggerDefinition = {
   },
   servers: [
     {
-      url: "http://localhost:5001",
+      // url: "http://localhost:5001",
+      url: "http://elice-kdt-ai-4th-team04.elicecoding.com/api",
       description: "Development server",
     },
   ],
