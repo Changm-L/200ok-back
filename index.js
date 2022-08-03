@@ -2,7 +2,7 @@ import { app } from "./src/app.js";
 import swaggerJSDoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
 
-const PORT = process.env.SERVER_PORT || 80;
+const PORT = process.env.SERVER_PORT || 5000;
 
 const swaggerDefinition = {
   openapi: "3.0.0",
