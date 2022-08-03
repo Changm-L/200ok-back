@@ -1,4 +1,10 @@
-.gitignore
-/back/.gitignore
-/back/.gitmessage.txt
-/back/package-lock.json
+.env
+back/log
+logs
+node_modules
+~$*
+dump.rdb
+uploads
+
+package-lock.json
+yarn.lock
